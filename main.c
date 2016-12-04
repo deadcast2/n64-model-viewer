@@ -6,18 +6,19 @@
 
 struct ProjectionMatrix {
   Mtx projection;
-  Mtx modeling;
+  Mtx rotation;
+  Mtx translation;
 };
 
 struct ProjectionMatrix projectionMatrix;
 Gfx *glistp;
 Gfx gfx_glist[GFX_GLIST_LEN];
+u16 *perspNormal;
 
 static Vtx vertices[] = {
-    { -64, 64, -2, 0, 0, 0, 0, 0xff, 0, 0xff },
-    { 64, 64, -2, 0, 0, 0, 0, 0, 0, 0xff },
-    { 64, -64, -2, 0, 0, 0, 0, 0, 0xff, 0xff },
-    { -64, -64, -2, 0, 0, 0, 0xff, 0, 0, 0xff },
+    { -1, -1, 0, 0, 0, 0, 0xff, 0, 0, 0 },
+    { 1, -1, 0, 0, 0, 0, 0, 0xff, 0, 0 },
+    { 0, 1, 0, 0, 0, 0, 0, 0, 0xff, 0 }
 };
 
 static Vp viewPort = {
@@ -69,29 +70,33 @@ void setupTriangle(struct ProjectionMatrix* matrix) {
     gSPMatrix(glistp++, OS_K0_TO_PHYSICAL(&(matrix->projection)),
         G_MTX_PROJECTION | G_MTX_LOAD | G_MTX_NOPUSH);
 
-    gSPMatrix(glistp++, OS_K0_TO_PHYSICAL(&(matrix->modeling)),
+    gSPMatrix(glistp++, OS_K0_TO_PHYSICAL(&(matrix->translation)),
         G_MTX_MODELVIEW | G_MTX_LOAD | G_MTX_NOPUSH);
 
-    gSPVertex(glistp++, &(vertices[0]), 4, 0);
+    gSPMatrix(glistp++, OS_K0_TO_PHYSICAL(&(matrix->rotation)),
+        G_MTX_MODELVIEW | G_MTX_MUL | G_MTX_NOPUSH);
+
+    gSPVertex(glistp++, &(vertices[0]), 3, 0);
     gDPPipeSync(glistp++);
     gDPSetCycleType(glistp++, G_CYC_1CYCLE);
     gDPSetRenderMode(glistp++, G_RM_AA_OPA_SURF, G_RM_AA_OPA_SURF2);
     gSPClearGeometryMode(glistp++, 0xFFFFFFFF);
     gSPSetGeometryMode(glistp++, G_SHADE | G_SHADING_SMOOTH);
-    gSP2Triangles(glistp++, 0, 1, 2, 0, 0, 2, 3, 0);
+    gSP1Triangle(glistp++, 0, 1, 2, 0);
 }
 
-void createDisplayList() {
+void createDisplayList(int theta) {
     glistp = gfx_glist;
     rcpInit();
     clearFramBuffer();
 
-    guOrtho(&projectionMatrix.projection,
-        -(float)SCREEN_WD/2.0F, (float)SCREEN_WD/2.0F,
-        -(float)SCREEN_HT/2.0F, (float)SCREEN_HT/2.0F,
-        1.0F, 10.0F, 1.0F);
+    guPerspective(&projectionMatrix.projection,
+        &perspNormal,
+        60.0F, SCREEN_WD / SCREEN_HT,
+        1.0F, 100.0F, 1.0F);
 
-    guRotate(&projectionMatrix.modeling, -45.0F, 0.0F, 0.0F, 1.0F);
+    guTranslate(&projectionMatrix.translation, 0.0F, 0.0F, -5.0F);
+    guRotate(&projectionMatrix.rotation, theta, 0.0F, 1.0F, 0.0F);
 
     setupTriangle(&projectionMatrix);
     gDPFullSync(glistp++);
@@ -99,15 +104,25 @@ void createDisplayList() {
 
     nuGfxTaskStart(gfx_glist, (s32)(glistp - gfx_glist) * sizeof (Gfx),
         NU_GFX_UCODE_F3DEX , NU_SC_SWAPBUFFER);
+
+    nuDebConTextPos(0, 12, 5);
+    nuDebConCPuts(0, "A triangle. Wow.");
+    nuDebConDisp(NU_SC_SWAPBUFFER);
 }
 
 void gfxCallback(int pendingGfx) {
-  if(pendingGfx < 1) createDisplayList();
+    static int theta = 0;
+
+    if(pendingGfx < 1) {
+        createDisplayList(theta);
+        theta += 1;
+    }
 }
 
 void mainproc() {
   nuGfxInit();
-  nuGfxFuncSet((NUGfxFunc)gfxCallback);
-  nuGfxDisplayOn();
-  while(1);
+  while(1) {
+    nuGfxFuncSet((NUGfxFunc)gfxCallback);
+    nuGfxDisplayOn();
+  }
 }
