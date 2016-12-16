@@ -91,7 +91,7 @@ void createDisplayList(int theta) {
     clearFramBuffer();
 
     guPerspective(&projectionMatrix.projection,
-        &perspNormal,
+        perspNormal,
         60.0F, SCREEN_WD / SCREEN_HT,
         1.0F, 100.0F, 1.0F);
 
