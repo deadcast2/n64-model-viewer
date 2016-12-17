@@ -16,7 +16,14 @@ beginseg
 	include "$(ROOT)\usr\lib\PR\gspS2DEX2.fifo.o"
 endseg
 
+beginseg
+    name "star"
+    flags RAW
+    include "star.sos"
+endseg
+
 beginwave
 	name "main"
 	include	"code"
+	include "star"
 endwave

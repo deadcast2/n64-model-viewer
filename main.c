@@ -4,6 +4,12 @@
 #define SCREEN_HT 240
 #define GFX_GLIST_LEN 2048
 
+extern u8 _starSegmentRomStart[];
+extern u8 _starSegmentRomEnd[];
+
+char outputBuffer1[128];
+char outputBuffer2[128];
+
 struct ProjectionMatrix {
   Mtx projection;
   Mtx rotation;
@@ -105,8 +111,10 @@ void createDisplayList(int theta) {
     nuGfxTaskStart(gfx_glist, (s32)(glistp - gfx_glist) * sizeof (Gfx),
         NU_GFX_UCODE_F3DEX , NU_SC_SWAPBUFFER);
 
-    nuDebConTextPos(0, 12, 5);
-    nuDebConCPuts(0, "A triangle. Wow.");
+    nuDebConTextPos(0, 1, 1);
+    nuDebConCPuts(0, outputBuffer1);
+    nuDebConTextPos(0, 1, 4);
+    nuDebConCPuts(0, outputBuffer2);
     nuDebConDisp(NU_SC_SWAPBUFFER);
 }
 
@@ -119,8 +127,23 @@ void gfxCallback(int pendingGfx) {
     }
 }
 
+void Rom2Ram(void *from_addr, void *to_addr, s32 seq_size)
+{
+    /* If size is odd-numbered, cannot send over PI, so make it even */
+    if(seq_size & 0x00000001) seq_size++;
+
+    nuPiReadRom((u32)from_addr, to_addr, seq_size);
+}
+
+void readModelFile() {
+    const int fileSize = _starSegmentRomEnd - _starSegmentRomStart;
+    sprintf(outputBuffer1, "File size: %i bytes", fileSize);
+    Rom2Ram(_starSegmentRomStart, outputBuffer2, sizeof(outputBuffer2));
+}
+
 void mainproc() {
   nuGfxInit();
+  readModelFile();
   while(1) {
     nuGfxFuncSet((NUGfxFunc)gfxCallback);
     nuGfxDisplayOn();
