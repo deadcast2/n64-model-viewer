@@ -7,8 +7,30 @@
 extern u8 _starSegmentRomStart[];
 extern u8 _starSegmentRomEnd[];
 
-char outputBuffer1[128];
-char outputBuffer2[128];
+char outputBuffer[128];
+
+struct model {
+    struct mesh *meshes;
+    int count;
+};
+
+struct vector3 {
+    double x;
+    double y;
+    double z;
+};
+
+struct vector2 {
+    double x;
+    double y;
+};
+
+struct mesh {
+    struct vector3 *vertices;
+    struct vector2 *uvs;
+    int *indices;
+    int count;
+};
 
 struct ProjectionMatrix {
   Mtx projection;
@@ -23,7 +45,7 @@ u16 *perspNormal;
 
 static Vtx vertices[] = {
     { -1, -1, 0, 0, 0, 0, 0xff, 0, 0, 0 },
-    { 1, -1, 0, 0, 0, 0, 0, 0xff, 0, 0 },
+    { 1, -1, 0, 0, 0, 0, 0, 0xff, 0xff, 0 },
     { 0, 1, 0, 0, 0, 0, 0, 0, 0xff, 0 }
 };
 
@@ -111,10 +133,8 @@ void createDisplayList(int theta) {
     nuGfxTaskStart(gfx_glist, (s32)(glistp - gfx_glist) * sizeof (Gfx),
         NU_GFX_UCODE_F3DEX , NU_SC_SWAPBUFFER);
 
-    nuDebConTextPos(0, 1, 1);
-    nuDebConCPuts(0, outputBuffer1);
-    nuDebConTextPos(0, 1, 4);
-    nuDebConCPuts(0, outputBuffer2);
+    nuDebConTextPos(0, 0, 0);
+    nuDebConCPuts(0, outputBuffer);
     nuDebConDisp(NU_SC_SWAPBUFFER);
 }
 
@@ -136,14 +156,33 @@ void Rom2Ram(void *from_addr, void *to_addr, s32 seq_size)
 }
 
 void readModelFile() {
-    const int fileSize = _starSegmentRomEnd - _starSegmentRomStart;
-    sprintf(outputBuffer1, "File size: %i bytes", fileSize);
-    Rom2Ram(_starSegmentRomStart, outputBuffer2, sizeof(outputBuffer2));
+    int fileBuffer[20000];
+    char *line;
+    int lineCount = 0;
+    int meshCount = 0;
+    int fileSize = _starSegmentRomEnd - _starSegmentRomStart;
+
+    Rom2Ram(_starSegmentRomStart, fileBuffer, fileSize);
+
+    line = strtok(fileBuffer, "\n");
+    meshCount = atoi(line);
+
+    while(line != NULL) {
+        line = strtok(NULL, "\n");
+        lineCount++;
+    }
+
+    sprintf(outputBuffer,
+            "\nLoading STAR.SOS model\nFile size: %i bytes\nLine count: %i\nMesh count: %i",
+            fileSize,
+            lineCount,
+            meshCount);
 }
 
 void mainproc() {
   nuGfxInit();
   readModelFile();
+
   while(1) {
     nuGfxFuncSet((NUGfxFunc)gfxCallback);
     nuGfxDisplayOn();
